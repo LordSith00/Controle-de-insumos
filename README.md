@@ -39,9 +39,10 @@
 
 <header class="main-header">
     <div class="container d-flex justify-content-between align-items-center">
-        <img src="https://conectacargo.com.br/wp-content/uploads/2021/05/logo-conecta-cargo.png" style="height: 50px;" alt="Conecta Cargo">
+        <img src="https://conectacargo.com.br/wp-content/uploads/2023/06/Logo-Conecta-branco.png" style="height: 42px;" alt="Conecta Cargo">
         <div class="header-right d-flex align-items-center gap-3">
             <span class="badge-unidade"><i class="fas fa-map-marker-alt"></i> Unidade: <span id="unidadeLabel">Não informado</span></span>
+            <span class="badge-unidade"><i class="fas fa-user"></i> <span id="loggedUserLabel">—</span></span>
             <button class="btn-user" type="button" id="btnLogout"><i class="fas fa-user-circle"></i> Sair</button>
         </div>
     </div>
@@ -56,8 +57,110 @@
 
 <div class="container">
 
+    <!-- ABAS -->
+    <ul class="nav app-tabs mb-4" id="mainTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" type="button" data-tab="painel">
+                <i class="fas fa-table-columns"></i> Painel
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" type="button" data-tab="historico">
+                <i class="fas fa-history"></i> Histórico de Alterações
+            </button>
+        </li>
+    </ul>
+
+    <!-- ABA: PAINEL -->
+    <div class="tab-pane" id="tab-painel">
+        <h3 class="section-title"><i class="fas fa-traffic-light"></i> Controle Visual de Estoque (Kanban) </h3>
+        <div class="row g-4 mb-5" id="kanbanRow">
+            <div class="col-md-4">
+                <div class="kanban-col status-red">
+                    <div class="col-label d-flex justify-content-between">
+                        <span>Nível Crítico / Compra Imediata</span>
+                        <span class="col-count" id="count-critico">0</span>
+                    </div>
+                    <div id="col-critico" class="kanban-cards"></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kanban-col status-yellow">
+                    <div class="col-label d-flex justify-content-between">
+                        <span>Atenção / Reposição Próxima</span>
+                        <span class="col-count" id="count-atencao">0</span>
+                    </div>
+                    <div id="col-atencao" class="kanban-cards"></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kanban-col status-green">
+                    <div class="col-label d-flex justify-content-between">
+                        <span>Estoque Abastecido</span>
+                        <span class="col-count" id="count-abastecido">0</span>
+                    </div>
+                    <div id="col-abastecido" class="kanban-cards"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="content-box shadow-sm">
+                    <h4><i class="fas fa-chart-bar"></i> Ranking de Giro de Materiais </h4>
+                    <div id="chartEmptyState" class="text-center text-muted py-5">
+                        <i class="fas fa-chart-bar fa-2x mb-2" aria-hidden="true"></i>
+                        <p class="mb-0">O gráfico aparece aqui depois que uma planilha for carregada.</p>
+                    </div>
+                    <canvas id="graficoEstoque" class="d-none"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="content-box shadow-sm">
+                    <h4><i class="fas fa-exchange-alt"></i> Movimentação Rápida</h4>
+                    <div class="form-group mb-3">
+                        <label for="insumoSelect">Insumo</label>
+                        <select class="form-select" id="insumoSelect" disabled>
+                            <option value="">Carregue a planilha primeiro</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label for="qtdInput">Quantidade</label>
+                        <input type="number" class="form-control" id="qtdInput" placeholder="0" min="1" disabled>
+                        <div class="form-text text-danger d-none" id="qtdError">Informe uma quantidade válida.</div>
+                    </div>
+                    <button class="btn btn-conecta w-100 mb-2" id="btnEntrada" type="button" disabled>Registrar Entrada</button>
+                    <button class="btn btn-outline-secondary w-100" id="btnSaida" type="button" disabled>Registrar Saída (Baixa)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABA: HISTÓRICO DE ALTERAÇÕES -->
+    <div class="tab-pane d-none" id="tab-historico">
+        <div class="content-box shadow-sm">
+            <h4 class="mb-3"><i class="fas fa-history me-2"></i>Histórico de Alterações</h4>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Data</th>
+                            <th scope="col">Tipo</th>
+                            <th scope="col">Insumo</th>
+                            <th scope="col" class="text-end">Quantidade</th>
+                            <th scope="col">Usuário</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historicoBody">
+                        <tr><td colspan="5" class="text-center text-muted py-4">Sem dados carregados.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- FONTE DE DADOS -->
-    <div class="content-box shadow-sm mb-4" id="dataSourceBox">
+    <div class="content-box shadow-sm mt-4" id="dataSourceBox">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
                 <h4 class="mb-1"><i class="fas fa-file-excel"></i> Fonte de Dados</h4>
@@ -79,96 +182,9 @@
         </div>
     </div>
 
-    <h3 class="section-title"><i class="fas fa-traffic-light"></i> Controle Visual de Estoque (Kanban) </h3>
-    <div class="row g-4 mb-5" id="kanbanRow">
-        <div class="col-md-4">
-            <div class="kanban-col status-red">
-                <div class="col-label d-flex justify-content-between">
-                    <span>Nível Crítico / Compra Imediata</span>
-                    <span class="col-count" id="count-critico">0</span>
-                </div>
-                <div id="col-critico" class="kanban-cards"></div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="kanban-col status-yellow">
-                <div class="col-label d-flex justify-content-between">
-                    <span>Atenção / Reposição Próxima</span>
-                    <span class="col-count" id="count-atencao">0</span>
-                </div>
-                <div id="col-atencao" class="kanban-cards"></div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="kanban-col status-green">
-                <div class="col-label d-flex justify-content-between">
-                    <span>Estoque Abastecido</span>
-                    <span class="col-count" id="count-abastecido">0</span>
-                </div>
-                <div id="col-abastecido" class="kanban-cards"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="content-box shadow-sm">
-                <h4><i class="fas fa-chart-bar"></i> Ranking de Giro de Materiais </h4>
-                <div id="chartEmptyState" class="text-center text-muted py-5">
-                    <i class="fas fa-chart-bar fa-2x mb-2" aria-hidden="true"></i>
-                    <p class="mb-0">O gráfico aparece aqui depois que uma planilha for carregada.</p>
-                </div>
-                <canvas id="graficoEstoque" class="d-none"></canvas>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="content-box shadow-sm">
-                <h4><i class="fas fa-exchange-alt"></i> Movimentação Rápida</h4>
-                <div class="form-group mb-3">
-                    <label for="insumoSelect">Insumo</label>
-                    <select class="form-select" id="insumoSelect" disabled>
-                        <option value="">Carregue a planilha primeiro</option>
-                    </select>
-                </div>
-                <div class="form-group mb-2">
-                    <label for="qtdInput">Quantidade</label>
-                    <input type="number" class="form-control" id="qtdInput" placeholder="0" min="1" disabled>
-                    <div class="form-text text-danger d-none" id="qtdError">Informe uma quantidade válida.</div>
-                </div>
-                <button class="btn btn-conecta w-100 mb-2" id="btnEntrada" type="button" disabled>Registrar Entrada</button>
-                <button class="btn btn-outline-secondary w-100" id="btnSaida" type="button" disabled>Registrar Saída (Baixa)</button>
-            </div>
-        </div>
-    </div>
-
 </div>
 
 <footer class="footer">
-
-    <div class="card shadow-sm p-4 mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h4 class="mb-0"><i class="fas fa-history me-2"></i>Histórico Diário </h4>
-            <button class="btn btn-success btn-sm" id="exportBtn2" type="button">
-                <i class="fas fa-file-export"></i> Exportar Relatório
-            </button>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th scope="col">Data</th>
-                        <th scope="col">Tipo</th>
-                        <th scope="col">Insumo</th>
-                        <th scope="col" class="text-end">Quantidade</th>
-                    </tr>
-                </thead>
-                <tbody id="historicoBody">
-                    <tr><td colspan="4" class="text-center text-muted py-4">Sem dados carregados.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
     <div class="container text-center mt-4">
         <img src="https://conectacargo.com.br/wp-content/uploads/2023/06/Logo-Conecta-branco.png" style="width:130px;" class="mb-3" alt="Conecta Cargo">
         <p>Sistema Integrado de Gestão de Armazenagem </p>
@@ -196,8 +212,25 @@
 /* =========================================================
    LOGIN (tela de acesso)
    ========================================================= */
-const VALID_USER = 'bruno.melo';
-const VALID_PASS = 'bruno.melo002';
+/* =========================================================
+   USUÁRIOS VÁLIDOS
+   Para adicionar, remover ou alterar um usuário, edite as
+   linhas abaixo — formato: 'usuario': 'senha'.
+   ========================================================= */
+const VALID_CREDENTIALS = {
+    'bruno.melo': 'bruno.melo002',
+    'user.1':  'user1',
+    'user.2':  'user2',
+    'user.3':  'user3',
+    'user.4':  'user4',
+    'user.5':  'user5',
+    'user.6':  'user6',
+    'user.7':  'user7',
+    'user.8':  'user8',
+    'user.9':  'user9',
+    'user.10': 'user10'
+};
+let loggedInUser = '';
 
 document.getElementById('loginForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -205,7 +238,9 @@ document.getElementById('loginForm').addEventListener('submit', (e) => {
     const pass = document.getElementById('loginPass').value;
     const errorEl = document.getElementById('loginError');
 
-    if (user === VALID_USER && pass === VALID_PASS) {
+    if (VALID_CREDENTIALS[user] !== undefined && VALID_CREDENTIALS[user] === pass) {
+        loggedInUser = user;
+        document.getElementById('loggedUserLabel').textContent = user;
         document.getElementById('loginScreen').classList.add('login-hide');
         document.getElementById('appRoot').classList.remove('d-none');
         setTimeout(() => document.getElementById('loginScreen').remove(), 300);
@@ -218,6 +253,18 @@ document.getElementById('loginForm').addEventListener('submit', (e) => {
 
 document.getElementById('btnLogout').addEventListener('click', () => {
     location.reload();
+});
+
+/* =========================================================
+   ABAS (Painel / Histórico de Alterações)
+   ========================================================= */
+document.querySelectorAll('#mainTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#mainTabs .nav-link').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('d-none'));
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('d-none');
+    });
 });
 
 /* =========================================================
@@ -399,7 +446,8 @@ function processWorkbook(workbook) {
         data: formatDateBR(getField(row, ['Data'])),
         tipo: getField(row, ['Tipo', 'Categoria']) || '',
         insumo: (getField(row, ['Insumo', 'Item', 'Material']) || '').toString().trim(),
-        quantidade: Number(getField(row, ['Quantidade', 'Qtd'])) || 0
+        quantidade: Number(getField(row, ['Quantidade', 'Qtd'])) || 0,
+        usuario: getField(row, ['Usuario', 'Responsavel', 'Alterado por']) || 'Importado da planilha'
     }));
 
     if (!estoqueData.length) {
@@ -509,12 +557,12 @@ function renderTabela() {
     const body = document.getElementById('historicoBody');
     body.innerHTML = '';
     if (!historicoData.length) {
-        body.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Sem dados carregados.</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Sem dados carregados.</td></tr>';
         return;
     }
     [...historicoData].reverse().forEach(mov => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${mov.data}</td><td>${mov.tipo}</td><td>${mov.insumo}</td><td class="text-end">${mov.quantidade}</td>`;
+        tr.innerHTML = `<td>${mov.data}</td><td>${mov.tipo}</td><td>${mov.insumo}</td><td class="text-end">${mov.quantidade}</td><td>${mov.usuario || '—'}</td>`;
         body.appendChild(tr);
     });
 }
@@ -560,7 +608,8 @@ function registrarMovimento(tipoMovimento) {
         data: new Date().toLocaleDateString('pt-BR'),
         tipo: tipoMovimento,
         insumo: item.insumo,
-        quantidade: qtd
+        quantidade: qtd,
+        usuario: loggedInUser || 'Desconhecido'
     });
 
     qtdInput.value = '';
@@ -619,8 +668,8 @@ function exportarPlanilhaAtual() {
         : [{ Insumo: '', Quantidade: '', Unidade: '', Status: '', Tag: '', 'Unidade Operacional': '' }];
 
     const historicoExport = historicoData.length
-        ? historicoData.map(m => ({ Data: m.data, Tipo: m.tipo, Insumo: m.insumo, Quantidade: m.quantidade }))
-        : [{ Data: '', Tipo: '', Insumo: '', Quantidade: '' }];
+        ? historicoData.map(m => ({ Data: m.data, Tipo: m.tipo, Insumo: m.insumo, Quantidade: m.quantidade, Usuario: m.usuario || '' }))
+        : [{ Data: '', Tipo: '', Insumo: '', Quantidade: '', Usuario: '' }];
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(estoqueExport), 'Estoque');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(historicoExport), 'Historico');
@@ -631,7 +680,6 @@ function exportarPlanilhaAtual() {
 }
 
 document.getElementById('exportBtn').addEventListener('click', exportarPlanilhaAtual);
-document.getElementById('exportBtn2').addEventListener('click', exportarPlanilhaAtual);
 </script>
 
 <style>
@@ -639,6 +687,77 @@ document.getElementById('exportBtn2').addEventListener('click', exportarPlanilha
     --qa-danger: #d32f2f;
     --qa-warning: #fbc02d;
     --qa-success: #388e3c;
+    --brand-navy: #000080;
+}
+
+/* =========================================================
+   IDENTIDADE VISUAL — cabeçalho e rodapé azul-marinho
+   ========================================================= */
+.main-header {
+    background: var(--brand-navy) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
+}
+.main-header .badge-unidade {
+    color: #fff;
+    background: rgba(255, 255, 255, .12);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: .82rem;
+}
+.main-header .btn-user {
+    color: #fff;
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .25);
+    border-radius: 8px;
+    padding: 6px 14px;
+    transition: background .15s ease;
+}
+.main-header .btn-user:hover { background: rgba(255, 255, 255, .22); }
+
+body .hero-banner,
+section.hero-banner {
+    background: var(--brand-navy) !important;
+    background-image: none !important;
+    margin-top: 0 !important;
+    padding: 28px 0 36px !important;
+}
+body .hero-banner h1,
+section.hero-banner h1 { color: #fff !important; }
+body .hero-banner p,
+section.hero-banner p { color: #d7dbf5 !important; }
+body .hero-banner strong,
+section.hero-banner strong { color: #fff !important; }
+
+.footer {
+    background: var(--brand-navy) !important;
+    color: #f1f2f6;
+    padding: 32px 0 24px;
+}
+.footer p { color: #cfd2e6; }
+.footer a { color: #fff; text-decoration: underline; }
+.footer a:hover { color: #d9e0ff; }
+
+/* =========================================================
+   ABAS (Painel / Histórico de Alterações)
+   ========================================================= */
+.app-tabs {
+    border-bottom: 1px solid #e5e7eb;
+    gap: 4px;
+}
+.app-tabs .nav-link {
+    background: none;
+    border: none;
+    padding: 10px 18px;
+    font-weight: 600;
+    font-size: .92rem;
+    color: #6b7280;
+    border-bottom: 3px solid transparent;
+    transition: color .15s ease, border-color .15s ease;
+}
+.app-tabs .nav-link:hover { color: var(--brand-navy); }
+.app-tabs .nav-link.active {
+    color: var(--brand-navy);
+    border-bottom-color: var(--brand-navy);
 }
 
 .drop-zone {
@@ -661,7 +780,7 @@ document.getElementById('exportBtn2').addEventListener('click', exportarPlanilha
 .col-count {
     font-size: .75rem;
     font-weight: 600;
-    background: rgb(3, 0, 161);
+    background: rgba(0,0,0,.06);
     border-radius: 999px;
     padding: 1px 9px;
     line-height: 1.5;
