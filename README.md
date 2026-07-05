@@ -39,7 +39,7 @@
 
 <header class="main-header">
     <div class="container d-flex justify-content-between align-items-center">
-        <img src="https://conectacargo.com.br/wp-content/uploads/2023/06/Logo-Conecta-branco.png" style="height: 42px;" alt="Conecta Cargo">
+        <img src="https://conectacargo.com.br/wp-content/uploads/2023/06/Logo-Conecta-branco.png" style="height: 120px;" alt="Conecta Cargo">
         <div class="header-right d-flex align-items-center gap-3">
             <span class="badge-unidade"><i class="fas fa-map-marker-alt"></i> Unidade: <span id="unidadeLabel">Não informado</span></span>
             <span class="badge-unidade"><i class="fas fa-user"></i> <span id="loggedUserLabel">—</span></span>
@@ -252,7 +252,22 @@ document.getElementById('loginForm').addEventListener('submit', (e) => {
 });
 
 document.getElementById('btnLogout').addEventListener('click', () => {
-    location.reload();
+    if (estoqueData.length || historicoData.length) {
+        exportarPlanilhaAtual();
+    }
+    setTimeout(() => location.reload(), 400);
+});
+
+/* =========================================================
+   AVISO AO FECHAR/RECARREGAR A PÁGINA
+   Navegadores não permitem personalizar o texto desse aviso
+   por segurança — eles mostram uma mensagem padrão própria.
+   ========================================================= */
+window.addEventListener('beforeunload', (e) => {
+    if (estoqueData.length || historicoData.length) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
 });
 
 /* =========================================================
