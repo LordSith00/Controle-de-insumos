@@ -12,12 +12,37 @@
 </head>
 <body>
 
+<!-- TELA DE LOGIN -->
+<div id="loginScreen" class="login-overlay">
+    <form id="loginForm" class="login-box" autocomplete="off">
+        <img src="https://conectacargo.com.br/wp-content/uploads/2021/05/logo-conecta-cargo.png" alt="Conecta Cargo" class="login-logo">
+        <h3>Acesso ao Painel</h3>
+        <p class="text-muted mb-4">Insira suas credenciais para continuar</p>
+
+        <div class="form-group mb-3 text-start">
+            <label for="loginUser">Usuário</label>
+            <input type="text" id="loginUser" class="form-control" required autocomplete="username">
+        </div>
+        <div class="form-group mb-2 text-start">
+            <label for="loginPass">Senha</label>
+            <input type="password" id="loginPass" class="form-control" required autocomplete="current-password">
+        </div>
+        <div id="loginError" class="text-danger small mb-3 d-none">
+            <i class="fas fa-circle-exclamation"></i> Usuário ou senha incorretos.
+        </div>
+        <button type="submit" class="btn btn-conecta w-100">Entrar</button>
+    </form>
+</div>
+
+<!-- CONTEÚDO DO PAINEL (liberado após login) -->
+<div id="appRoot" class="d-none">
+
 <header class="main-header">
     <div class="container d-flex justify-content-between align-items-center">
         <img src="https://conectacargo.com.br/wp-content/uploads/2021/05/logo-conecta-cargo.png" style="height: 50px;" alt="Conecta Cargo">
         <div class="header-right d-flex align-items-center gap-3">
             <span class="badge-unidade"><i class="fas fa-map-marker-alt"></i> Unidade: <span id="unidadeLabel">Não informado</span></span>
-            <button class="btn-user" type="button"><i class="fas fa-user-circle"></i> Sair</button>
+            <button class="btn-user" type="button" id="btnLogout"><i class="fas fa-user-circle"></i> Sair</button>
         </div>
     </div>
 </header>
@@ -151,14 +176,73 @@
     </div>
 </footer>
 
+</div> <!-- fim #appRoot -->
+
+<!-- POPUP DE ITENS CRÍTICOS -->
+<div id="criticalModalOverlay" class="modal-overlay d-none">
+    <div class="modal-box">
+        <div class="modal-icon"><i class="fas fa-triangle-exclamation"></i></div>
+        <h4>Atenção — Itens Críticos</h4>
+        <p class="text-muted">Estes insumos precisam de reposição imediata:</p>
+        <ul id="criticalList" class="critical-list"></ul>
+        <button id="closeCriticalModal" class="btn btn-conecta w-100 mt-2">Entendi</button>
+    </div>
+</div>
+
 <!-- TOASTS -->
 <div id="toastContainer" aria-live="assertive" aria-atomic="true"></div>
 
 <script>
 /* =========================================================
+   LOGIN (tela de acesso)
+   ========================================================= */
+const VALID_USER = 'bruno.melo';
+const VALID_PASS = 'bruno.melo002';
+
+document.getElementById('loginForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const user = document.getElementById('loginUser').value.trim();
+    const pass = document.getElementById('loginPass').value;
+    const errorEl = document.getElementById('loginError');
+
+    if (user === VALID_USER && pass === VALID_PASS) {
+        document.getElementById('loginScreen').classList.add('login-hide');
+        document.getElementById('appRoot').classList.remove('d-none');
+        setTimeout(() => document.getElementById('loginScreen').remove(), 300);
+    } else {
+        errorEl.classList.remove('d-none');
+        document.getElementById('loginPass').value = '';
+        document.getElementById('loginPass').focus();
+    }
+});
+
+document.getElementById('btnLogout').addEventListener('click', () => {
+    location.reload();
+});
+
+/* =========================================================
+   POPUP DE ITENS CRÍTICOS
+   ========================================================= */
+function showCriticalPopup() {
+    const criticos = estoqueData.filter(i => computeStatus(i.quantidade) === 'critico');
+    if (!criticos.length) return;
+
+    const list = document.getElementById('criticalList');
+    list.innerHTML = criticos
+        .map(i => `<li><strong>${i.quantidade} ${i.unidade}</strong> de <strong>${i.insumo}</strong> em estado crítico</li>`)
+        .join('');
+
+    document.getElementById('criticalModalOverlay').classList.remove('d-none');
+}
+
+document.getElementById('closeCriticalModal').addEventListener('click', () => {
+    document.getElementById('criticalModalOverlay').classList.add('d-none');
+});
+
+/* =========================================================
    ESTADO GLOBAL
    ========================================================= */
-let estoqueData = [];     // [{ insumo, quantidade, unidade, status, tag, unidadeOperacional }]
+let estoqueData = [];     // [{ insumo, quantidade, unidade, tag, unidadeOperacional }]
 let historicoData = [];   // [{ data, tipo, insumo, quantidade }]
 let unidadeAtual = '';
 let chartInstance = null;
@@ -198,12 +282,10 @@ function getField(row, aliases) {
     return undefined;
 }
 
-function normalizeStatus(status) {
-    const s = normalizeKey(status || '');
-    if (s.includes('crit')) return 'critico';
-    if (s.includes('aten')) return 'atencao';
-    if (s.includes('abast') || s.includes('ok') || s.includes('normal')) return 'abastecido';
-    return 'atencao';
+function computeStatus(quantidade) {
+    if (quantidade > 100) return 'abastecido';
+    if (quantidade > 30) return 'atencao';
+    return 'critico';
 }
 
 function statusLabel(status) {
@@ -251,6 +333,7 @@ function handleWorkbookFile(file) {
             const workbook = XLSX.read(data, { type: 'array', cellDates: true });
             processWorkbook(workbook);
             showToast('Planilha carregada com sucesso.', 'success');
+            showCriticalPopup();
         } catch (err) {
             console.error(err);
             showToast('Não foi possível ler essa planilha. Verifique o arquivo e tente novamente.', 'error');
@@ -308,7 +391,6 @@ function processWorkbook(workbook) {
         insumo: (getField(row, ['Insumo', 'Item', 'Material']) || '').toString().trim(),
         quantidade: Number(getField(row, ['Quantidade', 'Qtd', 'Estoque'])) || 0,
         unidade: getField(row, ['Unidade', 'UN', 'Un']) || 'un.',
-        status: normalizeStatus(getField(row, ['Status', 'Situacao', 'Nivel'])),
         tag: getField(row, ['Tag', 'Observacao', 'Prioridade']) || '',
         unidadeOperacional: getField(row, ['Unidade Operacional', 'Filial', 'Unidade de Negocio']) || ''
     })).filter(r => r.insumo);
@@ -365,21 +447,27 @@ function renderKanban() {
             document.getElementById(id).innerHTML = '<p class="text-muted small mb-0">Sem dados.</p>';
         });
     } else {
+        const counters = { critico: 0, atencao: 0, abastecido: 0 };
         estoqueData.forEach(item => {
-            counts[item.status] = (counts[item.status] || 0) + 1;
-            const container = document.getElementById(cols[item.status] || cols.atencao);
-            const iconClass = item.status === 'critico'
-                ? 'fa-exclamation-circle text-danger'
-                : (item.status === 'abastecido' ? 'fa-check-circle text-success' : '');
+            const status = computeStatus(item.quantidade);
+            counts[status] = (counts[status] || 0) + 1;
+            const container = document.getElementById(cols[status] || cols.atencao);
+            const iconMap = {
+                critico: 'fa-exclamation-circle status-icon-critico',
+                atencao: 'fa-triangle-exclamation status-icon-atencao',
+                abastecido: 'fa-check-circle status-icon-abastecido'
+            };
+            const delay = (counters[status]++) * 60;
 
             const card = document.createElement('div');
-            card.className = 'insumo-card';
+            card.className = `insumo-card card-status-${status}`;
+            card.style.animationDelay = `${delay}ms`;
             card.innerHTML = `
                 ${item.tag ? `<div class="card-tag">${item.tag}</div>` : ''}
                 <h6>${item.insumo}</h6>
                 <div class="d-flex justify-content-between align-items-center">
                     <span class="qtd-val">${item.quantidade} ${item.unidade}</span>
-                    ${iconClass ? `<i class="fas ${iconClass}"></i>` : ''}
+                    <i class="fas ${iconMap[status]}" aria-hidden="true"></i>
                 </div>`;
             container.appendChild(card);
         });
@@ -407,7 +495,7 @@ function renderChart() {
     const colorMap = { critico: '#d32f2f', atencao: '#fbc02d', abastecido: '#388e3c' };
     const labels = estoqueData.map(i => i.insumo);
     const data = estoqueData.map(i => i.quantidade);
-    const colors = estoqueData.map(i => colorMap[i.status] || '#888');
+    const colors = estoqueData.map(i => colorMap[computeStatus(i.quantidade)] || '#888');
 
     if (chartInstance) chartInstance.destroy();
     chartInstance = new Chart(canvas.getContext('2d'), {
@@ -524,7 +612,7 @@ function exportarPlanilhaAtual() {
             Insumo: i.insumo,
             Quantidade: i.quantidade,
             Unidade: i.unidade,
-            Status: statusLabel(i.status),
+            Status: statusLabel(computeStatus(i.quantidade)),
             Tag: i.tag,
             'Unidade Operacional': i.unidadeOperacional
         }))
@@ -573,7 +661,7 @@ document.getElementById('exportBtn2').addEventListener('click', exportarPlanilha
 .col-count {
     font-size: .75rem;
     font-weight: 600;
-    background: rgba(0,0,0,.06);
+    background: rgb(3, 0, 161);
     border-radius: 999px;
     padding: 1px 9px;
     line-height: 1.5;
@@ -622,6 +710,218 @@ a:focus-visible {
 .app-toast-success { border-left-color: var(--qa-success); }
 .app-toast-error { border-left-color: var(--qa-danger); }
 .app-toast-info { border-left-color: #0d6efd; }
+
+/* =========================================================
+   KANBAN — bordas, cores por status, ícones e animações
+   ========================================================= */
+.kanban-col {
+    background: #fff;
+    border: 1px solid #e7e7ea;
+    border-radius: 16px;
+    padding: 18px 18px 8px;
+    min-height: 240px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .05);
+    transition: box-shadow .25s ease, transform .25s ease;
+    border-top: 4px solid #cbd5e1;
+}
+.kanban-col:hover {
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .09);
+    transform: translateY(-2px);
+}
+.kanban-col.status-red    { border-top-color: var(--qa-danger); }
+.kanban-col.status-yellow { border-top-color: var(--qa-warning); }
+.kanban-col.status-green  { border-top-color: var(--qa-success); }
+
+.col-label {
+    font-weight: 600;
+    font-size: .92rem;
+    letter-spacing: .01em;
+    color: #374151;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eef0f2;
+}
+.col-count {
+    background: rgba(15, 23, 42, .06);
+}
+.kanban-col.status-red .col-count    { background: rgba(211, 47, 47, .12); color: var(--qa-danger); }
+.kanban-col.status-yellow .col-count { background: rgba(251, 192, 2, .18); color: #8a6100; }
+.kanban-col.status-green .col-count  { background: rgba(56, 142, 60, .12); color: var(--qa-success); }
+
+.insumo-card {
+    background: #fff;
+    border: 1px solid #ececef;
+    border-left: 4px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 13px 15px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .04);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    animation: cardIn .35s ease both;
+}
+.insumo-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .1);
+    border-color: #dcdfe4;
+}
+.insumo-card h6 { margin: 2px 0 8px; font-weight: 600; color: #1f2937; }
+.qtd-val { font-weight: 600; color: #111827; }
+
+.card-status-critico    { border-left-color: var(--qa-danger); }
+.card-status-atencao    { border-left-color: var(--qa-warning); }
+.card-status-abastecido { border-left-color: var(--qa-success); }
+
+.status-icon-critico    { color: var(--qa-danger); animation: pulseIcon 1.8s ease-in-out infinite; }
+.status-icon-atencao    { color: #b8860b; }
+.status-icon-abastecido { color: var(--qa-success); }
+
+.card-tag {
+    display: inline-block;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7280;
+    background: #f3f4f6;
+    border-radius: 999px;
+    padding: 2px 9px;
+    margin-bottom: 6px;
+}
+
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseIcon {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .55; transform: scale(1.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .insumo-card, .status-icon-critico { animation: none !important; }
+    .insumo-card:hover, .kanban-col:hover { transform: none !important; }
+}
+
+/* =========================================================
+   OUTROS DETALHES DE POLIMENTO
+   ========================================================= */
+.content-box {
+    transition: box-shadow .2s ease;
+}
+.btn-conecta, .btn-outline-secondary, .btn-success {
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn-conecta:hover, .btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(56, 142, 60, .25);
+}
+
+/* =========================================================
+   TELA DE LOGIN
+   ========================================================= */
+.login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f4f6f5 0%, #e7efe8 100%);
+    padding: 20px;
+    transition: opacity .3s ease;
+}
+.login-overlay.login-hide { opacity: 0; pointer-events: none; }
+
+.login-box {
+    background: #fff;
+    border-radius: 18px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, .12);
+    animation: loginIn .4s ease both;
+}
+.login-logo { height: 42px; margin-bottom: 18px; }
+.login-box h3 { font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+.login-box label { font-size: .85rem; font-weight: 600; color: #4b5563; margin-bottom: 4px; display: block; }
+.login-box .form-control {
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+.login-box .form-control:focus {
+    border-color: var(--qa-success);
+    box-shadow: 0 0 0 3px rgba(56, 142, 60, .15);
+}
+
+@keyframes loginIn {
+    from { opacity: 0; transform: translateY(14px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* =========================================================
+   POPUP DE ITENS CRÍTICOS
+   ========================================================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1900;
+    background: rgba(15, 23, 42, .45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: overlayIn .2s ease both;
+}
+.modal-box {
+    background: #fff;
+    border-radius: 18px;
+    padding: 32px 30px 26px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, .25);
+    animation: modalPop .3s ease both;
+}
+.modal-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background: rgba(251, 192, 2, .15);
+    color: #b8860b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    animation: pulseIcon 1.8s ease-in-out infinite;
+}
+.modal-box h4 { font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+.critical-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+    text-align: left;
+    max-height: 240px;
+    overflow-y: auto;
+}
+.critical-list li {
+    background: rgba(211, 47, 47, .06);
+    border-left: 3px solid var(--qa-danger);
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    font-size: .92rem;
+    color: #333;
+}
+
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalPop {
+    from { opacity: 0; transform: translateY(10px) scale(.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .login-box, .modal-box, .modal-icon { animation: none !important; }
+}
 </style>
 
 </body>
